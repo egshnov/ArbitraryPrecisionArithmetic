@@ -17,6 +17,7 @@ void SwapNums(BigNum lhs, BigNum rhs) {
     swap(int, lhs->sign_, rhs->sign_);
 }
 
+//double pointer?
 BigNum CreateNum() {
     BigNum tmp = (BigNum) (malloc(sizeof(struct BigNum)));
     if (tmp != NULL) {
@@ -144,9 +145,8 @@ static void set_sign_plus(BigNum tmp, BigNum lhs, BigNum rhs) {
 }
 
 static int8_t
-apply_operation(BigNum lhs, BigNum rhs, BigNum tmp, char(*operation)(char, char, char *), int8_t(*rearrange)(BigNum,
-                                                                                                             char),
-                void(*set_sign)(BigNum, BigNum, BigNum)) {
+apply_operation(BigNum lhs, BigNum rhs, BigNum tmp, char(*operation)(char, char, char *),
+                int8_t(*rearrange)(BigNum, char), void(*set_sign)(BigNum, BigNum, BigNum)) {
     char overhead = 0;
     for (size_t i = 0; i < rhs->size_; i++) {
         tmp->digits_[i] = operation(lhs->digits_[i], rhs->digits_[i], &overhead);
@@ -192,10 +192,45 @@ int8_t Sub(BigNum lhs, BigNum rhs, BigNum res) {
     return code;
 }
 
+int8_t Mult(BigNum lhs, BigNum rhs, BigNum res) {
+    BigNum tmp;
+    tmp = CreateNum();
+    tmp->digits_ = (char *) malloc(sizeof(char) * (lhs->size_ + rhs->size_));
+    if (tmp->digits_ == NULL) return ERROR;
+    for (int i = 0; i < lhs->size_ + rhs->size_; i++) {
+        tmp->digits_[i] = 0;
+    }
+    for (int i = 0; i < lhs->size_; i++) {
+        for (int j = 0, overhead = 0; j < rhs->size_ || overhead; j++) {
+            char intermediate =
+                    tmp->digits_[i + j] + lhs->digits_[i] * (j < rhs->size_ ? rhs->digits_[j] : 0) + overhead;
+            tmp->digits_[i + j] = intermediate % base;
+            overhead = intermediate / base;
+        }
+    }
+    int ind = lhs->size_ + rhs->size_ - 1;
+    while (ind > 0 && tmp->digits_[ind] == 0) {
+        ind--;
+    }
+    tmp->size_ = ind + 1;
+    char *insurance = tmp->digits_;
+    tmp->digits_ = (char *) (realloc(tmp->digits_, sizeof(char) * tmp->size_));
+    if (tmp->digits_ == NULL) {
+        free(insurance);
+        return ERROR;
+    }
+    tmp->sign_ = lhs->sign_ == rhs->sign_ ? +1 : -1;
+    SwapNums(tmp, res);
+    FreeNum(tmp);
+    return SUCCESS;
+}
+
 void FreeNum(BigNum num) {
-    num->size_ = 0;
-    num->sign_ = 0;
-    free(num->digits_);
+    if (num != NULL) {
+        num->size_ = 0;
+        num->sign_ = 0;
+        free(num->digits_);
+    }
     free(num);
 }
 //
