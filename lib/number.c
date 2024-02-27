@@ -39,9 +39,9 @@ static int FirstNonNull(const char *str, size_t len) {
 }
 
 //target must be a result of CreateNum()
-static int8_t SetFromStrWithSize(char const *str, size_t str_size, BigNum target) {
+static int8_t set_from_str_with_size(char const *str, size_t str_size, BigNum target) {
     if (str == NULL || target == NULL || strcmp(str, "") == 0) return ERROR;
-
+    free(target->digits_); // if target is already initialised;
     int first_non_null_digit = FirstNonNull(str, str_size);
     if (first_non_null_digit >= str_size) return ERROR;
 
@@ -69,7 +69,7 @@ static int8_t SetFromStrWithSize(char const *str, size_t str_size, BigNum target
 
 //undefined behaviour if str is not a null terminated string
 int8_t SetFromStr(char const *str, BigNum target) {
-    return SetFromStrWithSize(str, strlen(str), target);
+    return set_from_str_with_size(str, strlen(str), target);
 }
 
 //null if couldn't alloc , ub if num was initialised incorrectly
@@ -163,6 +163,7 @@ apply_operation(BigNum lhs, BigNum rhs, BigNum tmp, char(*operation)(char, char,
 
 static int8_t apply_addition(BigNum lhs, BigNum rhs, BigNum res) {
     BigNum tmp = CreateNum();
+    if (tmp == NULL) return ERROR;
     tmp->size_ = lhs->size_;
     tmp->sign_ = 1;
     tmp->digits_ = (char *) malloc(sizeof(char) * tmp->size_);
@@ -195,6 +196,7 @@ int8_t Sub(BigNum lhs, BigNum rhs, BigNum res) {
 int8_t Mult(BigNum lhs, BigNum rhs, BigNum res) {
     BigNum tmp;
     tmp = CreateNum();
+    if (tmp == NULL) return ERROR;
     tmp->digits_ = (char *) malloc(sizeof(char) * (lhs->size_ + rhs->size_));
     if (tmp->digits_ == NULL) return ERROR;
     for (int i = 0; i < lhs->size_ + rhs->size_; i++) {
@@ -222,6 +224,207 @@ int8_t Mult(BigNum lhs, BigNum rhs, BigNum res) {
     tmp->sign_ = lhs->sign_ == rhs->sign_ ? +1 : -1;
     SwapNums(tmp, res);
     FreeNum(tmp);
+    return SUCCESS;
+}
+
+
+int8_t Abs(BigNum to, BigNum from) {
+    printf("from in abs %s\n\n\n", ToStr(from));
+    BigNum tmp = CreateNum();
+    if (tmp == NULL) return ERROR;
+    if (CopyNum(tmp, from) == ERROR) return ERROR;
+    tmp->sign_ = 1;
+    SwapNums(tmp, to);
+    printf("in abs %s\n", ToStr(to));
+    FreeNum(tmp);
+    return SUCCESS;
+}
+
+/*
+  a / b:
+  a = b * q + r    0 <= r < |b|
+  abs(lhs) >= abs(rhs):
+  ++ = default
+  -- = default -> q += 1   r = -r -> r += rhs
+  -+  , +- = default q = -q   r = r
+
+
+  abs(lhs) <= abs(rhs)
+  ++ = default = q = 0 r = lhs
+  -- q = 1  r = abs(lhs) + rhs
+  -+ q = -1 r = lhs + rhs
+  +- q = 0 r = lhs
+*/
+
+static int8_t add_character_front(BigNum target, char c) {
+    char *new_digits = (char *) malloc(sizeof(char) * (target->size_ + 1));
+    if (new_digits == NULL) return ERROR;
+    new_digits[0] = c;
+    for (int i = 1; i < target->size_ + 1; i++) {
+        new_digits[i] = target->digits_[i - 1];
+    }
+    free(target->digits_);
+    target->size_ += 1;
+    target->digits_ = new_digits;
+    return SUCCESS;
+}
+
+static int8_t add_character_back(BigNum target, char c) {
+    char *new_digits = (char *) malloc(sizeof(char) * (target->size_ + 1));
+    if (new_digits == NULL) return ERROR;
+    for (int i = 0; i < target->size_ + 1; i++) {
+        new_digits[i] = target->digits_[i - 1];
+    }
+    free(target->digits_);
+    new_digits[target->size_] = c;
+    target->size_ += 1;
+    target->digits_ = new_digits;
+    return SUCCESS;
+}
+
+static int8_t absolute_values_division(BigNum lhs, BigNum rhs, BigNum quotient, BigNum remainder) {
+    printf("lhs: %s\n", ToStr(lhs));
+    printf("rhs: %s\n", ToStr(rhs));
+
+    for (int ind = lhs->size_ - 1; ind >= 0; ind--) {
+        if (add_character_front(remainder, lhs->digits_[ind]) == ERROR) return ERROR;
+        printf("added charcater %d\n", lhs->digits_[ind]);
+        int8_t cmp = Compare(remainder, rhs);
+        printf("compare is %d\n", cmp);
+        printf("remainder: %s\n", ToStr(remainder));
+        printf("rhs: %s\n", ToStr(rhs));
+        if (cmp == -1) continue;
+        char cnt = 0;
+        while (cmp != -1) {
+            Sub(remainder, rhs, remainder);
+            cnt++;
+            cmp = Compare(remainder, rhs);
+        }
+        add_character_back(quotient, cnt);
+    }
+    return SUCCESS;
+}
+
+static const int maintainer_size = 4;
+
+static void release_maintainer(BigNum *maintainer) {
+    for (int i = 0; i < maintainer_size; i++) {
+        FreeNum(maintainer[i]);
+    }
+}
+
+static void add_to_maintainer(BigNum *maintainer, BigNum target) {
+    static int ind = 0;
+    maintainer[ind++] = target;
+}
+
+int8_t Division(BigNum lhs, BigNum rhs, BigNum quotient, BigNum remainder) {
+    printf("in div\n");
+    printf("lhs: %s\n", ToStr(lhs));
+    printf("rhs: %s\n", ToStr(rhs));
+    printf("\n\n\n");
+
+    if (rhs->size_ == 1 && rhs->digits_[0] == 0) return ERROR;
+    BigNum maintainer[maintainer_size];
+    for (int i = 0; i < maintainer_size; i++) {
+        maintainer[i] = NULL;
+    }
+
+    BigNum lhs_abs = CreateNum();
+    BigNum rhs_abs = CreateNum();
+    BigNum tmp_quotient = CreateNum();
+    BigNum tmp_remainder = CreateNum();
+
+    add_to_maintainer(maintainer, lhs_abs);
+    add_to_maintainer(maintainer, rhs_abs);
+    add_to_maintainer(maintainer, tmp_quotient);
+    add_to_maintainer(maintainer, tmp_remainder);
+
+    if (tmp_quotient == NULL || tmp_remainder == NULL || rhs_abs == NULL || lhs_abs == NULL ||
+        Abs(lhs_abs, lhs) == ERROR || Abs(rhs_abs, rhs) == ERROR) {
+        release_maintainer(maintainer);
+        return ERROR;
+    }
+    printf("after abs\n");
+    printf("lhs: %s\n", ToStr(lhs_abs));
+    printf("rhs: %s\n", ToStr(rhs_abs));
+    printf("\n\n\n");
+
+    if (Compare(lhs_abs, rhs_abs) == -1) {
+          printf("lhs < rhs\n");
+        if (lhs->sign_ == 1) {
+            if (SetFromStr("0", tmp_quotient) == ERROR || CopyNum(tmp_remainder, lhs) == ERROR) {
+                release_maintainer(maintainer);
+                return ERROR;
+            }
+             printf("++ or +-\n");
+        } else {
+            printf("-- or ++ \n");
+            if (SetFromStr(rhs->sign_ == -1 ? "1" : "-1", tmp_quotient) == ERROR ||
+                Add(lhs_abs, rhs, tmp_remainder) == ERROR) {
+                release_maintainer(maintainer);
+                return ERROR;
+            }
+        }
+    } else {
+       printf("lhs >= rhs\n");
+        printf("getting absolute\n");
+        if (absolute_values_division(lhs_abs, rhs_abs, tmp_quotient, tmp_remainder) == ERROR) {
+            release_maintainer(maintainer);
+            return ERROR;
+        }
+
+         printf("got absolute\n");
+        if (lhs->sign_ == -1 && rhs->sign_ == -1) {
+            //  printf("--\n");
+            BigNum unit = CreateNum();
+            tmp_remainder->sign_ = -1;
+            if (unit == NULL || SetFromStr("1", unit) == ERROR || Add(tmp_quotient, unit, tmp_quotient) == ERROR ||
+                Add(tmp_remainder, rhs, tmp_remainder) == ERROR) {
+                FreeNum(unit);
+                release_maintainer(maintainer);
+                return ERROR;
+            }
+            FreeNum(unit);
+            printf("-- fine \n");
+        }
+        if (lhs->sign_ != rhs->sign_) {
+             printf("-+ or +- \n");
+            tmp_quotient->sign_ = -1;
+        }
+
+    }
+    SwapNums(tmp_quotient, quotient);
+    SwapNums(tmp_remainder, remainder);
+    printf("swapped nums\n");
+    printf("releasing\n");
+    FreeNum(tmp_quotient);
+    FreeNum(tmp_remainder);
+    FreeNum(lhs_abs);
+    FreeNum(rhs_abs);
+    return SUCCESS;
+}
+
+int8_t Compare(BigNum lhs, BigNum rhs) { // 0 = equal , 1 = lhs > rhs  -1 = lhs < rhs
+    if (lhs->sign_ != rhs->sign_) return lhs->sign_ == 1 ? 1 : -1;
+    if (lhs->size_ > rhs->size_) return lhs->sign_ == 1 ? 1 : -1;
+    if (lhs->size_ < rhs->size_) return lhs->sign_ == 1 ? -1 : 1;
+    for (int i = lhs->size_ - 1; i >= 0; i--) {
+        if (lhs->digits_[i] != rhs->digits_[i]) return lhs->digits_[i] > rhs->digits_[i] ? 1 : -1;
+    }
+    return 0;
+}
+
+int8_t CopyNum(BigNum to, BigNum from) {
+    if (to == NULL || from == NULL) return ERROR;
+    free(to->digits_);
+    to->size_ = from->size_;
+    to->sign_ = from->sign_;
+    to->digits_ = (char *) malloc(sizeof(char) * to->size_);
+    if (to->digits_ == NULL) return ERROR;
+    for (int i = 0; i < to->size_; i++) {
+        to->digits_[i] = from->digits_[i];
+    }
     return SUCCESS;
 }
 

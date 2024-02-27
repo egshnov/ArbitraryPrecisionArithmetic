@@ -29,9 +29,12 @@ int8_t Sub(BigNum lhs, BigNum rhs, BigNum res);
 
 int8_t Mult(BigNum lhs, BigNum rhs, BigNum res);
 
-BigNum Div(BigNum lhs, BigNum rhs);
+int8_t Division(BigNum lhs, BigNum rhs, BigNum quotient, BigNum remainder);
 
-BigNum Mod(BigNum lhs, BigNum rhs);
+
+int8_t CopyNum(BigNum to, BigNum from);
+
+int8_t Abs(BigNum to, BigNum from);
 
 int8_t Compare(BigNum lhs, BigNum rhs); // -1 = lhs<rhs 0 = lhs==rhs 1 = lhs==rhs
 
