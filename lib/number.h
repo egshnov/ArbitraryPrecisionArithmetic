@@ -19,7 +19,7 @@ extern const struct BigNum NotANumber;
 
 BigNum CreateNum();
 
-int8_t SetFromStr(char const *str, BigNum target);
+int8_t SetFromStr(BigNum target, char const *str);
 
 char *ToStr(BigNum num);
 
@@ -32,16 +32,14 @@ int8_t Mult(BigNum lhs, BigNum rhs, BigNum res);
 int8_t Division(BigNum lhs, BigNum rhs, BigNum quotient, BigNum remainder);
 
 
-int8_t CopyNum(BigNum to, BigNum from);
+int8_t CopyNum(BigNum from, BigNum to);
 
-int8_t Abs(BigNum to, BigNum from);
+int8_t Abs(BigNum from, BigNum to);
 
 int8_t Compare(BigNum lhs, BigNum rhs); // -1 = lhs<rhs 0 = lhs==rhs 1 = lhs==rhs
 
 void FreeNum(BigNum num);
 
 void SwapNums(BigNum lhs, BigNum rhs);
-
-BigNum NumFromInt(int num);
 
 #endif //ARBITARYPRECISIONARITHMETICS_NUMBER_H
