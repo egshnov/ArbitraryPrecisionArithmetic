@@ -348,6 +348,14 @@ int8_t Division(BigNum lhs, BigNum rhs, BigNum quotient, BigNum remainder) {
     return SUCCESS;
 }
 
+int8_t Div(BigNum lhs, BigNum rhs, BigNum res) {
+    return Division(lhs, rhs, res, NULL);
+}
+
+int8_t Mod(BigNum lhs, BigNum rhs, BigNum res) {
+    return Division(lhs, rhs, NULL, res);
+}
+
 int8_t Compare(BigNum lhs, BigNum rhs) { // 0 = equal , 1 = lhs > rhs  -1 = lhs < rhs
     if (lhs->sign_ != rhs->sign_) return lhs->sign_ == 1 ? 1 : -1;
     if (lhs->size_ > rhs->size_) return lhs->sign_ == 1 ? 1 : -1;
