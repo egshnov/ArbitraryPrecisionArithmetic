@@ -28,7 +28,7 @@ BigNum CreateNum() {
 }
 
 //gets non-empty null-terminated string
-static int FirstNonNull(const char *str, size_t len) {
+static int first_non_null(const char *str, size_t len) {
     bool has_a_sign = (str[0] == '-' || str[0] == '+');
     int ind = has_a_sign;
     while (ind < len - 1 && str[ind] == '0') {
@@ -41,7 +41,7 @@ static int FirstNonNull(const char *str, size_t len) {
 static int8_t set_from_str_with_size(char const *str, size_t str_size, BigNum target) {
     if (str == NULL || target == NULL || strcmp(str, "") == 0) return ERROR;
     free(target->digits_); // if target is already initialised;
-    int first_non_null_digit = FirstNonNull(str, str_size);
+    int first_non_null_digit = first_non_null(str, str_size);
     if (first_non_null_digit >= str_size) return ERROR;
 
 
@@ -259,15 +259,19 @@ int8_t Abs(BigNum from, BigNum to) {
 */
 
 static int8_t add_character_front(BigNum target, char c) {
-    char *new_digits = (char *) malloc(sizeof(char) * (target->size_ + 1));
-    if (new_digits == NULL) return ERROR;
-    new_digits[0] = c;
-    for (int i = 1; i < target->size_ + 1; i++) {
-        new_digits[i] = target->digits_[i - 1];
+    if (target->size_ == 1 && target->digits_[0] == 0) {
+        target->digits_[0] = c;
+    } else {
+        char *new_digits = (char *) malloc(sizeof(char) * (target->size_ + 1));
+        if (new_digits == NULL) return ERROR;
+        new_digits[0] = c;
+        for (int i = 1; i < target->size_ + 1; i++) {
+            new_digits[i] = target->digits_[i - 1];
+        }
+        free(target->digits_);
+        target->size_ += 1;
+        target->digits_ = new_digits;
     }
-    free(target->digits_);
-    target->size_ += 1;
-    target->digits_ = new_digits;
     return SUCCESS;
 }
 
@@ -284,7 +288,9 @@ static int8_t absolute_values_division(BigNum lhs, BigNum rhs, BigNum quotient, 
             cnt++;
             cmp = Compare(remainder, rhs);
         }
-        if (add_character_front(quotient, cnt) == ERROR) return ERROR;
+        if (!(ind == 0 && cnt == 0)) {
+            if (add_character_front(quotient, cnt) == ERROR) return ERROR;
+        }
     }
     return SUCCESS;
 }
@@ -298,6 +304,7 @@ static int8_t absolute_values_division(BigNum lhs, BigNum rhs, BigNum quotient, 
     }
 
 int8_t Division(BigNum lhs, BigNum rhs, BigNum quotient, BigNum remainder) {
+    if (quotient == NULL && remainder == NULL) return ERROR;
     if (rhs->size_ == 1 && rhs->digits_[0] == 0) return ERROR;
 
     BigNum lhs_abs = CreateNum();
@@ -342,8 +349,12 @@ int8_t Division(BigNum lhs, BigNum rhs, BigNum quotient, BigNum remainder) {
         } else if (rhs->sign_ == -1) tmp_quotient->sign_ = -1;
 
     }
-    SwapNums(tmp_quotient, quotient);
-    SwapNums(tmp_remainder, remainder);
+    if (quotient != NULL) {
+        SwapNums(tmp_quotient, quotient);
+    }
+    if (remainder != NULL) {
+        SwapNums(tmp_remainder, remainder);
+    }
     release(lhs_abs, rhs_abs, tmp_quotient, tmp_remainder);
     return SUCCESS;
 }
@@ -354,6 +365,36 @@ int8_t Div(BigNum lhs, BigNum rhs, BigNum res) {
 
 int8_t Mod(BigNum lhs, BigNum rhs, BigNum res) {
     return Division(lhs, rhs, NULL, res);
+}
+
+int8_t gcd(BigNum a, BigNum b, BigNum res) {
+    if (b->size_ == 1 && b->digits_[0] == 0) {
+        SwapNums(a, res);
+        return SUCCESS;
+    }
+    Mod(a, b, a);
+    return gcd(b, a, res);
+}
+
+int8_t GCD(BigNum lhs, BigNum rhs, BigNum res) {
+    BigNum tmp_lhs = CreateNum();
+    BigNum tmp_rhs = CreateNum();
+    BigNum tmp_res = CreateNum();
+    if (tmp_lhs == NULL || tmp_rhs == NULL || tmp_res == NULL ||
+        Abs(lhs, tmp_lhs) == ERROR || Abs(rhs, tmp_rhs) == ERROR) {
+        FreeNum(tmp_lhs);
+        FreeNum(tmp_rhs);
+        FreeNum(tmp_res);
+        return ERROR;
+    }
+    int8_t code = gcd(tmp_lhs, tmp_rhs, tmp_res);
+    if (code != ERROR) {
+        SwapNums(tmp_res, res);
+    }
+    FreeNum(tmp_lhs);
+    FreeNum(tmp_rhs);
+    FreeNum(tmp_res);
+    return code;
 }
 
 int8_t Compare(BigNum lhs, BigNum rhs) { // 0 = equal , 1 = lhs > rhs  -1 = lhs < rhs

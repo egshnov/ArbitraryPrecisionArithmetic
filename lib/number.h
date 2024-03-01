@@ -38,8 +38,10 @@ int8_t Abs(BigNum from, BigNum to);
 
 int8_t Compare(BigNum lhs, BigNum rhs); // -1 = lhs<rhs 0 = lhs==rhs 1 = lhs==rhs
 int8_t Div(BigNum lhs, BigNum rhs, BigNum res);
+
 int8_t Mod(BigNum lhs, BigNum rhs, BigNum res);
 
+int8_t GCD(BigNum lhs, BigNum rhs, BigNum res);
 
 void FreeNum(BigNum num);
 
