@@ -257,6 +257,36 @@ MU_TEST(division) {
 
 }
 
+//corrupts lhs and rhs
+
+void test_gcd(char *s_lhs, char *s_rhs, char *expected) {
+    BigNum lhs = CreateNum();
+    BigNum rhs = CreateNum();
+    BigNum res = CreateNum();
+    BigNum expect = CreateNum();
+    SetFromStr(lhs, s_lhs);
+    SetFromStr(rhs, s_rhs);
+    SetFromStr(expect, expected);
+    GCD(lhs, rhs, res);
+    mu_assert(Compare(res, expect) == 0, s_lhs);
+    FreeNum(lhs);
+    FreeNum(rhs);
+    FreeNum(res);
+    FreeNum(expect);
+}
+
+MU_TEST(gcd) {
+    test_gcd("42", "56", "14");
+    test_gcd("461952", "116298", "18");
+    test_gcd("7966496", "314080416", "32");
+    test_gcd("24826148", "45296490", "526");
+    test_gcd("12", "0", "12");
+    test_gcd("0", "9", "9");
+    test_gcd("0", "0", "0"); //???
+    test_gcd("-5", "10", "5");
+    test_gcd("5", "-10", "5");
+}
+
 MU_TEST_SUITE(test_suite) {
     MU_RUN_TEST(division);
     MU_RUN_TEST(string_conversion_test);
@@ -267,6 +297,7 @@ MU_TEST_SUITE(test_suite) {
     MU_RUN_TEST(multiplication);
     MU_RUN_TEST(compare);
     MU_RUN_TEST(copy);
+    MU_RUN_TEST(gcd);
 }
 
 int main() {
