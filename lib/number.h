@@ -12,7 +12,6 @@ struct BigNum { //0 - 49 9 - 57
     int sign_; //-1 0 1
 };
 typedef struct BigNum *BigNum;
-extern const struct BigNum NotANumber;
 
 #define SUCCESS 0
 #define ERROR 1
