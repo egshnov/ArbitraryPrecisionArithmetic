@@ -1,7 +1,8 @@
 #include "number.h"
-#include <malloc.h>
+#include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
+#include <stdio.h>
 
 const int base = 10;
 #define swap(T, x, y) \
@@ -40,10 +41,9 @@ static int first_non_null(const char *str, size_t len) {
 //target must be a result of CreateNum()
 static int8_t set_from_str_with_size(char const *str, size_t str_size, BigNum target) {
     if (str == NULL || target == NULL || strcmp(str, "") == 0) return ERROR;
-    free(target->digits_); // if target is already initialised;
     int first_non_null_digit = first_non_null(str, str_size);
     if (first_non_null_digit >= str_size) return ERROR;
-
+    free(target->digits_); // if target is already initialised;
 
     target->size_ = str_size - first_non_null_digit;
 
@@ -110,8 +110,8 @@ static int8_t rearrange_minus(BigNum tmp, char overhead) {
     return SUCCESS;
 }
 
-static void set_sign_minus(BigNum tmp, BigNum lhs, BigNum rhs) {
-    if (lhs->sign_ == -1 &&
+static void set_sign_minus(BigNum tmp, int lhs) {
+    if (lhs == -1 &&
         !(tmp->size_ == 1 &&
           tmp->digits_[0] == 0)) { //-> rhs.sign = +1 cause set_sign_minus is used when signs are different
         tmp->sign_ = -1;
@@ -132,22 +132,22 @@ static int8_t rearrange_plus(BigNum tmp, char overhead) {
         tmp->size_ += 1;
         insurance = tmp->digits_;
         tmp->digits_ = (char *) realloc(tmp->digits_, sizeof(char) * tmp->size_);
+        if (tmp->digits_ == NULL) {
+            free(insurance);
+            return ERROR;
+        }
         tmp->digits_[tmp->size_ - 1] = overhead;
-    }
-    if (tmp->digits_ == NULL) {
-        free(insurance);
-        return ERROR;
     }
     return SUCCESS;
 }
 
-static void set_sign_plus(BigNum tmp, BigNum lhs, BigNum rhs) {
-    tmp->sign_ = lhs->sign_;
+static void set_sign_plus(BigNum tmp, int lhs) {
+    tmp->sign_ = lhs;
 }
 
 static int8_t
 apply_operation(BigNum lhs, BigNum rhs, BigNum tmp, char(*operation)(char, char, char *),
-                int8_t(*rearrange)(BigNum, char), void(*set_sign)(BigNum, BigNum, BigNum)) {
+                int8_t(*rearrange)(BigNum, char), void(*set_sign)(BigNum, int), int sign_lhs) {
     char overhead = 0;
     for (size_t i = 0; i < rhs->size_; i++) {
         tmp->digits_[i] = operation(lhs->digits_[i], rhs->digits_[i], &overhead);
@@ -157,39 +157,51 @@ apply_operation(BigNum lhs, BigNum rhs, BigNum tmp, char(*operation)(char, char,
     }
     int8_t code = rearrange(tmp, overhead);
     if (code == SUCCESS) {
-        set_sign(tmp, lhs, rhs);
+        set_sign(tmp, sign_lhs);
     }
     return code;
 }
 
-static int8_t apply_addition(BigNum lhs, BigNum rhs, BigNum res) {
+#define MAX(a, b) (((a)>(b))?(a):(b))
+
+//res must be a result of CreateNum, lhs and rhs must be initialized
+int8_t Add(BigNum lhs, BigNum rhs, BigNum res) {
+    BigNum lhs_abs = CreateNum();
+    BigNum rhs_abs = CreateNum();
+    if (lhs == NULL || rhs == NULL || Abs(lhs, lhs_abs) == ERROR || Abs(rhs, rhs_abs) == ERROR) {
+        FreeNum(lhs_abs);
+        FreeNum(rhs_abs);
+        return ERROR;
+    }
+    int8_t cmp = Compare(lhs_abs, rhs_abs);
+
     BigNum tmp = CreateNum();
     if (tmp == NULL) return ERROR;
-    tmp->size_ = lhs->size_;
+    tmp->size_ = MAX(lhs->size_, rhs->size_);
     tmp->sign_ = 1;
     tmp->digits_ = (char *) malloc(sizeof(char) * tmp->size_);
     int8_t code;
     if (tmp->digits_ == NULL) return ERROR;
+
     if (lhs->sign_ == rhs->sign_) {
-        code = apply_operation(lhs, rhs, tmp, plus, rearrange_plus, set_sign_plus);
+        code = cmp != -1 ? apply_operation(lhs_abs, rhs_abs, tmp, plus, rearrange_plus, set_sign_plus, lhs->sign_)
+                         : apply_operation(rhs_abs, lhs_abs, tmp, plus, rearrange_plus, set_sign_plus, rhs->sign_);
     } else {
-        code = apply_operation(lhs, rhs, tmp, minus, rearrange_minus, set_sign_minus);
+        code = cmp != -1 ? apply_operation(lhs_abs, rhs_abs, tmp, minus, rearrange_minus, set_sign_minus, lhs->sign_)
+                         : apply_operation(rhs_abs, lhs_abs, tmp, minus, rearrange_minus, set_sign_minus, rhs->sign_);
     }
     if (code == ERROR) return ERROR;
+
     SwapNums(tmp, res);
     FreeNum(tmp);
-    return SUCCESS;
-}
-
-// res must be a result of CreateNum, lhs and rhs must be initialized
-int8_t Add(BigNum lhs, BigNum rhs, BigNum res) {
-    if (lhs->size_ >= rhs->size_) return apply_addition(lhs, rhs, res);
-    return apply_addition(rhs, lhs, res);
+    FreeNum(lhs_abs);
+    FreeNum(rhs_abs);
+    return code;
 }
 
 int8_t Sub(BigNum lhs, BigNum rhs, BigNum res) {
     rhs->sign_ = -rhs->sign_;
-    int8_t code = lhs->size_ >= rhs->size_ ? apply_addition(lhs, rhs, res) : apply_addition(rhs, lhs, res);
+    int8_t code = Add(lhs, rhs, res);
     if (rhs != res) rhs->sign_ = -rhs->sign_; // if Sub(lhs,rhs,rhs) was called
     return code;
 }
@@ -231,8 +243,6 @@ int8_t Mult(BigNum lhs, BigNum rhs, BigNum res) {
 
 
 int8_t Abs(BigNum from, BigNum to) {
-    char *str = ToStr(from);
-    free(str);
     BigNum tmp = CreateNum();
     if (tmp == NULL) return ERROR;
     if (CopyNum(from, tmp) == ERROR) return ERROR;
@@ -303,7 +313,7 @@ static int8_t absolute_values_division(BigNum lhs, BigNum rhs, BigNum quotient, 
         FreeNum((d));\
     }
 
-int8_t Division(BigNum lhs, BigNum rhs, BigNum quotient, BigNum remainder) {
+int8_t DivMod(BigNum lhs, BigNum rhs, BigNum quotient, BigNum remainder) {
     if (quotient == NULL && remainder == NULL) return ERROR;
     if (rhs->size_ == 1 && rhs->digits_[0] == 0) return ERROR;
 
@@ -360,11 +370,11 @@ int8_t Division(BigNum lhs, BigNum rhs, BigNum quotient, BigNum remainder) {
 }
 
 int8_t Div(BigNum lhs, BigNum rhs, BigNum res) {
-    return Division(lhs, rhs, res, NULL);
+    return DivMod(lhs, rhs, res, NULL);
 }
 
 int8_t Mod(BigNum lhs, BigNum rhs, BigNum res) {
-    return Division(lhs, rhs, NULL, res);
+    return DivMod(lhs, rhs, NULL, res);
 }
 
 int8_t gcd(BigNum a, BigNum b, BigNum res) {

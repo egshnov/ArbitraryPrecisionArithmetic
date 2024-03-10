@@ -29,7 +29,7 @@ int8_t Sub(BigNum lhs, BigNum rhs, BigNum res);
 
 int8_t Mult(BigNum lhs, BigNum rhs, BigNum res);
 
-int8_t Division(BigNum lhs, BigNum rhs, BigNum quotient, BigNum remainder);
+int8_t DivMod(BigNum lhs, BigNum rhs, BigNum quotient, BigNum remainder);
 
 
 int8_t CopyNum(BigNum from, BigNum to);

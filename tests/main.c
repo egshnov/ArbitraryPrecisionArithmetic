@@ -1,15 +1,15 @@
 #include <number.h>
-#include "malloc.h"
+#include <stdlib.h>
 #include "minunit.h"
 #include <string.h>
 
 void test_conversion(char const *given, char const *expected, char sign) {
     BigNum num = CreateNum();
     int code = SetFromStr(num, given);
-    mu_assert(code == SUCCESS, code);
+    mu_check(code == SUCCESS);
     mu_check(num->sign_ == sign);
     char *str2 = ToStr(num);
-    mu_assert(strcmp(str2, expected) == 0, str2);
+    mu_check(strcmp(str2, expected) == 0);
     free(str2);
     FreeNum(num);
 }
@@ -28,7 +28,7 @@ MU_TEST(string_conversion_test) {
 void test_sc_error_handling(char const *given) {
     BigNum num = CreateNum();
     int code = SetFromStr(num, given);
-    mu_assert(code == ERROR, code);
+    mu_check(code == ERROR);
     FreeNum(num);
 }
 
@@ -59,7 +59,7 @@ test_operation(char const *s_lhs, char const *s_rhs, char const *s_res, int8_t (
     mu_check(operation(lhs, rhs, res) == SUCCESS);
     char *str = ToStr(res);
     int check = strcmp(str, s_res);
-    mu_assert(check == 0, check);
+    mu_check(check == 0);
     FreeNum(lhs);
     FreeNum(rhs);
     FreeNum(res);
@@ -89,9 +89,14 @@ MU_TEST(addition) {
                    "-544154351321312532132131251343514351351354135",
                    "64646854354354004643545124302680179252261778711114103177399", Add);
     test_operation("-325", "325", "0", Add);
+    test_operation("123", "122", "245", Add);
+    test_operation("64446", "595", "65041", Add);
+    test_operation("11", "-12", "-1", Add);
 }
 
 MU_TEST(subtraction) {
+    test_operation("25", "26", "-1", Sub);
+    test_operation("11", "12", "-1", Sub);
     test_operation("12412442", "12412442", "0", Sub);
     test_operation("7989797997", "4546854", "7985251143", Sub);
     test_operation("-554164", "-85454", "-468710", Sub);
@@ -108,7 +113,7 @@ void test_arguments_lhs(char const *s_lhs, char const *s_rhs, char const *s_res)
     mu_check(Sub(lhs, rhs, rhs) == SUCCESS);
     char *str = ToStr(rhs);
     int check = strcmp(str, s_res);
-    mu_assert(check == 0, check);
+    mu_check(check == 0);
     FreeNum(lhs);
     FreeNum(rhs);
     free(str);
@@ -122,12 +127,11 @@ void test_arguments_rhs(char const *s_lhs, char const *s_rhs, char const *s_res)
     mu_check(Sub(lhs, rhs, lhs) == SUCCESS);
     char *str = ToStr(lhs);
     int check = strcmp(str, s_res);
-    mu_assert(check == 0, check);
+    mu_check(check == 0);
     FreeNum(lhs);
     FreeNum(rhs);
     free(str);
 }
-
 
 MU_TEST(rep_arguments) {
     test_arguments_lhs("1", "23", "-22");
@@ -184,7 +188,6 @@ MU_TEST(compare) {
     test_compare("88888888888984868468", "88888888888884868468", 1);
     test_compare("-92", "-560", 1);
     test_compare("546546546546854635453", "36565654656568684868", 1);
-
 }
 
 void test_copy(char *s_str) {
@@ -194,7 +197,7 @@ void test_copy(char *s_str) {
     CopyNum(num, target);
     char *str = ToStr(num);
     char *str2 = ToStr(target);
-    mu_assert(strcmp(str, str2) == 0, strcmp(str, str2));
+    mu_check(strcmp(str, str2) == 0);
     free(str);
     free(str2);
     FreeNum(target);
@@ -221,18 +224,18 @@ void test_division(char const *s_lhs, char const *s_rhs) {
     mu_check(result != NULL);
     SetFromStr(lhs, s_lhs);
     SetFromStr(rhs, s_rhs);
-    int8_t code = Division(lhs, rhs, quotient, remainder);
+    int8_t code = DivMod(lhs, rhs, quotient, remainder);
     BigNum abs_rhs = CreateNum();
     mu_check(abs_rhs != NULL);
     mu_check(Abs(rhs, abs_rhs) != ERROR);
     BigNum zero = CreateNum();
     mu_check(zero != NULL);
     mu_check(Compare(zero, remainder) != 1);
-    mu_assert(Compare(remainder, abs_rhs) == -1, "remainder >= abs");
-    mu_assert(code == SUCCESS, "division error");
-    mu_assert(Mult(rhs, quotient, result) == SUCCESS, "multiplication error");
-    mu_assert(Add(result, remainder, result) == SUCCESS, "addition error");
-    mu_assert(Compare(result, lhs) == 0, "result doesn't equal lhs");
+    mu_check(Compare(remainder, abs_rhs) == -1);
+    mu_check(code == SUCCESS);
+    mu_check(Mult(rhs, quotient, result) == SUCCESS);
+    mu_check(Add(result, remainder, result) == SUCCESS);
+    mu_check(Compare(result, lhs) == 0);
     FreeNum(lhs);
     FreeNum(rhs);
     FreeNum(quotient);
@@ -253,11 +256,7 @@ MU_TEST(division) {
     test_division("-878799959999455656", "54465656");
     test_division("-124865849848", "-16516546854685556565854");
     test_division("-546854685464", "5665");
-
-
 }
-
-//corrupts lhs and rhs
 
 void test_gcd(char *s_lhs, char *s_rhs, char *expected) {
     BigNum lhs = CreateNum();
@@ -268,7 +267,7 @@ void test_gcd(char *s_lhs, char *s_rhs, char *expected) {
     SetFromStr(rhs, s_rhs);
     SetFromStr(expect, expected);
     GCD(lhs, rhs, res);
-    mu_assert(Compare(res, expect) == 0, s_lhs);
+    mu_check(Compare(res, expect) == 0);
     FreeNum(lhs);
     FreeNum(rhs);
     FreeNum(res);
@@ -282,21 +281,21 @@ MU_TEST(gcd) {
     test_gcd("24826148", "45296490", "526");
     test_gcd("12", "0", "12");
     test_gcd("0", "9", "9");
-    test_gcd("0", "0", "0"); //???
+    test_gcd("0", "0", "0");
     test_gcd("-5", "10", "5");
     test_gcd("5", "-10", "5");
 }
 
 MU_TEST_SUITE(test_suite) {
-    MU_RUN_TEST(division);
+    MU_RUN_TEST(subtraction);
     MU_RUN_TEST(string_conversion_test);
     MU_RUN_TEST(string_conversion_error_handling);
     MU_RUN_TEST(addition);
-    MU_RUN_TEST(subtraction);
     MU_RUN_TEST(rep_arguments);
     MU_RUN_TEST(multiplication);
     MU_RUN_TEST(compare);
     MU_RUN_TEST(copy);
+    MU_RUN_TEST(division);
     MU_RUN_TEST(gcd);
 }
 

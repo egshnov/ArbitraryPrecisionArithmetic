@@ -1,9 +1,5 @@
-project(Test)
-
 set(test_source main.c)
 set(HEADERS minunit.h)
 add_executable(tst ${test_source} ${HEADERS})
-
-target_link_libraries(tst ArbitaryPrecisionArithmetics)
-
+target_link_libraries(tst PUBLIC ArbitaryPrecisionArithmetics)
 add_test(NAME Test1 COMMAND tst)
