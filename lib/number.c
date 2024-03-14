@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
-#include <stdio.h>
 
 const int base = 10;
 #define swap(T, x, y) \
