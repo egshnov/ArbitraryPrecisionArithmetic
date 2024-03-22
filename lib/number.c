@@ -175,13 +175,22 @@ int8_t Add(BigNum lhs, BigNum rhs, BigNum res) {
     int8_t cmp = Compare(lhs_abs, rhs_abs);
 
     BigNum tmp = CreateNum();
-    if (tmp == NULL) return ERROR;
+    if (tmp == NULL) {
+        FreeNum(lhs_abs);
+        FreeNum(rhs_abs);
+        return ERROR;
+    }
     tmp->size_ = MAX(lhs->size_, rhs->size_);
     tmp->sign_ = 1;
     tmp->digits_ = (char *) malloc(sizeof(char) * tmp->size_);
-    int8_t code;
-    if (tmp->digits_ == NULL) return ERROR;
+    if (tmp->digits_ == NULL) {
+        FreeNum(tmp);
+        FreeNum(lhs_abs);
+        FreeNum(rhs_abs);
+        return ERROR;
+    }
 
+    int8_t code;
     if (lhs->sign_ == rhs->sign_) {
         code = cmp != -1 ? apply_operation(lhs_abs, rhs_abs, tmp, plus, rearrange_plus, set_sign_plus, lhs->sign_)
                          : apply_operation(rhs_abs, lhs_abs, tmp, plus, rearrange_plus, set_sign_plus, rhs->sign_);
@@ -189,9 +198,11 @@ int8_t Add(BigNum lhs, BigNum rhs, BigNum res) {
         code = cmp != -1 ? apply_operation(lhs_abs, rhs_abs, tmp, minus, rearrange_minus, set_sign_minus, lhs->sign_)
                          : apply_operation(rhs_abs, lhs_abs, tmp, minus, rearrange_minus, set_sign_minus, rhs->sign_);
     }
-    if (code == ERROR) return ERROR;
 
-    SwapNums(tmp, res);
+    if (code != ERROR) {
+        SwapNums(tmp, res);
+    }
+
     FreeNum(tmp);
     FreeNum(lhs_abs);
     FreeNum(rhs_abs);
@@ -210,7 +221,10 @@ int8_t Mult(BigNum lhs, BigNum rhs, BigNum res) {
     tmp = CreateNum();
     if (tmp == NULL) return ERROR;
     tmp->digits_ = (char *) malloc(sizeof(char) * (lhs->size_ + rhs->size_));
-    if (tmp->digits_ == NULL) return ERROR;
+    if (tmp->digits_ == NULL) {
+        FreeNum(tmp);
+        return ERROR;
+    }
     for (int i = 0; i < lhs->size_ + rhs->size_; i++) {
         tmp->digits_[i] = 0;
     }
@@ -232,6 +246,7 @@ int8_t Mult(BigNum lhs, BigNum rhs, BigNum res) {
     tmp->digits_ = (char *) (realloc(tmp->digits_, sizeof(char) * tmp->size_));
     if (tmp->digits_ == NULL) {
         free(insurance);
+        FreeNum(tmp);
         return ERROR;
     }
     tmp->sign_ = lhs->sign_ == rhs->sign_ ? +1 : -1;
@@ -244,7 +259,10 @@ int8_t Mult(BigNum lhs, BigNum rhs, BigNum res) {
 int8_t Abs(BigNum from, BigNum to) {
     BigNum tmp = CreateNum();
     if (tmp == NULL) return ERROR;
-    if (CopyNum(from, tmp) == ERROR) return ERROR;
+    if (CopyNum(from, tmp) == ERROR) {
+        FreeNum(tmp);
+        return ERROR;
+    };
     tmp->sign_ = 1;
     SwapNums(tmp, to);
     FreeNum(tmp);
