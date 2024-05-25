@@ -2,9 +2,13 @@
 The given library implements multiple precision arithmetics.
 # Build    
 To build the library do the following:  
-`cmake -B <directory-name> -H. -GNinja`  
-`cmake --build <build-directory-name>`  
+```bash
+cmake -B <directory-name> -H. -GNinja 
+cmake --build <build-directory-name>
+```  
 # Tests  
 To run the tests do the following (after building the library):  
-`cd <build-directory-name>`  
-`ninja test`
+```bash
+cd <build-directory-name>
+ninja test
+```
